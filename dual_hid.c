@@ -46,7 +46,7 @@ static const uint8_t configuration_descriptor[] = {
   0x03,  // interface class (HID)
   0x00,  // interface subclass
   0x00,  // interface protocol
-  0x00,  // string index for interface
+  0x03,  // string index for interface
 
   // hid descriptor 0
   0x09,  // size
@@ -74,7 +74,7 @@ static const uint8_t configuration_descriptor[] = {
   0x03,  // interface class (HID)
   0x00,  // interface subclass
   0x00,  // interface protocol
-  0x00,  // string index for interface
+  0x04,  // string index for interface
 
   // hid descriptor 1
   0x09,  // size
@@ -127,14 +127,24 @@ static const uint8_t hid_report_descriptor[] = {
 static const uint8_t string_descriptor_0[] = { 0x04, 0x03, 0x09, 0x04 };
 
 static const uint8_t string_descriptor_1[] = {
-   0x16, 0x03,
-   'M', 0, 'e', 0, 'l', 0, 'l', 0, 'o', 0, 'w', 0, ' ', 0, 'P', 0,
-   'C', 0, 'B', 0,
+  0x16, 0x03,
+  'M', 0, 'e', 0, 'l', 0, 'l', 0, 'o', 0, 'w', 0, ' ', 0, 'P', 0,
+  'C', 0, 'B', 0,
 };
 
 static const uint8_t string_descriptor_2[] = {
-   0x0e, 0x03,
-   'H', 0, 'U', 0, 'J', 0, 'I', 0, 'C', 0, 'O', 0,
+  0x0e, 0x03,
+  'H', 0, 'U', 0, 'J', 0, 'I', 0, 'C', 0, 'O', 0,
+};
+
+static const uint8_t string_descriptor_3[] = {
+  0x0e, 0x03,
+  'J', 0, 'V', 0, 'S', 0, ' ', 0, '#', 0, '1', 0,
+};
+
+static const uint8_t string_descriptor_4[] = {
+  0x0e, 0x03,
+  'J', 0, 'V', 0, 'S', 0, ' ', 0, '#', 0, '2', 0,
 };
 
 uint8_t get_descriptor_size(uint8_t type, uint8_t no) {
@@ -151,6 +161,10 @@ uint8_t get_descriptor_size(uint8_t type, uint8_t no) {
           return sizeof(string_descriptor_1);
         case 2:
           return sizeof(string_descriptor_2);
+        case 3:
+          return sizeof(string_descriptor_3);
+        case 4:
+          return sizeof(string_descriptor_4);
       }
       break;
     case USB_DESC_HID_REPORT:
@@ -173,6 +187,10 @@ const uint8_t* get_descriptor(uint8_t type, uint8_t no) {
           return string_descriptor_1;
         case 2:
           return string_descriptor_2;
+        case 3:
+          return string_descriptor_3;
+        case 4:
+          return string_descriptor_4;
       }
       break;
     case USB_DESC_HID_REPORT:
@@ -182,13 +200,22 @@ const uint8_t* get_descriptor(uint8_t type, uint8_t no) {
 }
 
 uint8_t get_report(uint8_t no, uint8_t* buffer) {
+  static uint8_t c = 0;
+  static uint8_t a = 0xff;
+  static uint8_t b = 0x00;
+  c++;
+  if (c == 0) {
+    uint8_t t = a;
+    a = b;
+    b = t;
+  }
   if (no == 1) {
-    buffer[0] = 0xff;
-    buffer[1] = 0;
+    buffer[0] = a;
+    buffer[1] = b;
     buffer[2] = 0x0f;
   } else {
-    buffer[0] = 0;
-    buffer[1] = 0xff;
+    buffer[0] = b;
+    buffer[1] = a;
     buffer[2] = 0x0f;
   }
   return 3;
