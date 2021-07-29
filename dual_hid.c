@@ -7,6 +7,10 @@
 #include "chlib/ch559.h"
 #include "chlib/usb.h"
 
+static uint8_t report[6];
+static bool hold_csw1 = false;
+static bool hold_csw2 = false;
+
 static const uint8_t device_descriptor[] = {
   0x12,  // size
   USB_DESC_DEVICE,
@@ -147,7 +151,7 @@ static const uint8_t string_descriptor_4[] = {
   'J', 0, 'V', 0, 'S', 0, ' ', 0, '#', 0, '2', 0,
 };
 
-uint8_t get_descriptor_size(uint8_t type, uint8_t no) {
+static uint8_t get_descriptor_size(uint8_t type, uint8_t no) {
   switch (type) {
     case USB_DESC_DEVICE:
       return sizeof(device_descriptor);
@@ -173,7 +177,7 @@ uint8_t get_descriptor_size(uint8_t type, uint8_t no) {
   return 0;
 }
 
-const uint8_t* get_descriptor(uint8_t type, uint8_t no) {
+static const uint8_t* get_descriptor(uint8_t type, uint8_t no) {
   switch (type) {
     case USB_DESC_DEVICE:
       return device_descriptor;
@@ -199,26 +203,39 @@ const uint8_t* get_descriptor(uint8_t type, uint8_t no) {
   return 0;
 }
 
-uint8_t get_report(uint8_t no, uint8_t* buffer) {
-  static uint8_t c = 0;
-  static uint8_t a = 0xff;
-  static uint8_t b = 0x00;
-  c++;
-  if (c == 0) {
-    uint8_t t = a;
-    a = b;
-    b = t;
-  }
-  if (no == 1) {
-    buffer[0] = a;
-    buffer[1] = b;
-    buffer[2] = 0x0f;
-  } else {
-    buffer[0] = b;
-    buffer[1] = a;
-    buffer[2] = 0x0f;
-  }
+static uint8_t get_report(uint8_t no, uint8_t* buffer) {
+  uint8_t offset = (no == 1) ? 0 : 3;
+  if (no == 1)
+    hold_csw1 = false;
+  else
+    hold_csw2 = false;
+  buffer[0] = report[offset + 0];
+  buffer[1] = report[offset + 1];
+  buffer[2] = report[offset + 2];
   return 3;
+}
+
+static uint8_t calc_hat(uint8_t sw1) {
+  switch ((sw1 & 0x3c) >> 2) {
+    case 8:
+      return 0;
+    case 9:
+      return 1;
+    case 1:
+      return 2;
+    case 5:
+      return 3;
+    case 4:
+      return 4;
+    case 6:
+      return 5;
+    case 2:
+      return 6;
+    case 10:
+      return 7;
+    default:
+      return 15;
+  }
 }
 
 void dual_hid_init() {
@@ -227,4 +244,42 @@ void dual_hid_init() {
   device.get_descriptor = get_descriptor;
   device.ep_in = get_report;
   usb_device_init(&device, UD_USE_EP1 | UD_USE_EP2);
+}
+
+void dual_hid_update(uint8_t sws[5], bool csw1, bool csw2) {
+  hold_csw1 |= csw1;
+  hold_csw2 |= csw2;
+  report[0] =
+      ((sws[1] & 0x02) ? 0x01 : 0) |
+      ((sws[1] & 0x01) ? 0x02 : 0) |
+      ((sws[2] & 0x80) ? 0x04 : 0) |
+      ((sws[2] & 0x40) ? 0x08 : 0) |
+      ((sws[2] & 0x20) ? 0x10 : 0) |
+      ((sws[2] & 0x10) ? 0x20 : 0) |
+      ((sws[2] & 0x08) ? 0x40 : 0) |
+      ((sws[2] & 0x04) ? 0x80 : 0);
+  report[1] =
+      ((sws[2] & 0x02) ? 0x01 : 0) |
+      ((sws[2] & 0x01) ? 0x02 : 0) |
+      ((sws[0] & 0x80) ? 0x04 : 0) |
+      ((sws[1] & 0x40) ? 0x08 : 0) |
+      (hold_csw1       ? 0x10 : 0) |
+      ((sws[1] & 0x80) ? 0x20 : 0);
+  report[2] = calc_hat(sws[1]);
+  report[3] =
+      ((sws[3] & 0x02) ? 0x01 : 0) |
+      ((sws[3] & 0x01) ? 0x02 : 0) |
+      ((sws[4] & 0x80) ? 0x04 : 0) |
+      ((sws[4] & 0x40) ? 0x08 : 0) |
+      ((sws[4] & 0x20) ? 0x10 : 0) |
+      ((sws[4] & 0x10) ? 0x20 : 0) |
+      ((sws[4] & 0x08) ? 0x40 : 0) |
+      ((sws[4] & 0x04) ? 0x80 : 0);
+  report[4] =
+      ((sws[3] & 0x02) ? 0x01 : 0) |
+      ((sws[3] & 0x01) ? 0x02 : 0) |
+      ((sws[3] & 0x40) ? 0x08 : 0) |
+      (hold_csw2       ? 0x10 : 0) |
+      ((sws[3] & 0x80) ? 0x20 : 0);
+  report[5] = calc_hat(sws[3]);
 }

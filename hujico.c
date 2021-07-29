@@ -20,5 +20,5 @@ void main() {
   Serial.println("JVS Host ready");
 
   for (;;)
-    jvs_poll();
+    jvs_poll(dual_hid_update);
 }

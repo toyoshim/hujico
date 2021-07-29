@@ -10,10 +10,10 @@
 #include "chlib/rs485.h"
 #include "jvsio/JVSIO_c.h"
 
-struct JVSIO_DataClient data;
-struct JVSIO_SenseClient sense;
-struct JVSIO_LedClient led;
-struct JVSIO_Lib* lib = 0;
+static struct JVSIO_DataClient data;
+static struct JVSIO_SenseClient sense;
+static struct JVSIO_LedClient led;
+static struct JVSIO_Lib* lib = 0;
 
 // JVS#1 - P1.0 SENSE
 // JVS#2 - P5.4 D-
@@ -117,7 +117,7 @@ void jvs_init() {
   lib->begin(lib);
 }
 
-void jvs_poll() {
+void jvs_poll(void (*cb)(uint8_t sws[5], bool csw1, bool csw2)) {
   static bool ready = false;
 
   led_poll();
@@ -137,4 +137,36 @@ void jvs_poll() {
   }
   if (!ready)
     return;
+
+  uint8_t requestSwInput[] = { 0x01, 0x04, kCmdSwInput, 2, 2 };
+  uint8_t* ack;
+  uint8_t ack_len;
+  bool result = lib->sendAndReceive(lib, requestSwInput, &ack, &ack_len);
+  if (!result || ack_len != 7 || ack[0] != 1 || ack[1] != 1)
+    return;
+  uint8_t sws[5];
+  for (uint8_t i = 0; i < 5; ++i)
+    sws[i] = ack[i + 2];
+
+  uint8_t requestCoinInput[] = { 0x01, 0x03, kCmdCoinInput, 2 };
+  result = lib->sendAndReceive(lib, requestCoinInput, &ack, &ack_len);
+  if (!result || ack_len != 6 || ack[0] != 1 || ack[1] != 1)
+    return;
+  if (ack[2] & 0xc0 || ack[4] & 0xc0)
+    return;
+  uint16_t c1 = (ack[2] << 8) | ack[3];
+  uint16_t c2 = (ack[4] << 8) | ack[5];
+
+  uint8_t slot = c1 ? 1 : c2 ? 2 : 0;
+  if (slot) {
+    uint8_t requestCoinSub[] = { 0x01, 0x05, kCmdCoinSub, slot, 0, 1 };
+    result = lib->sendAndReceive(lib, requestCoinSub, &ack, &ack_len);
+    if (!result || ack_len != 2 || ack[0] != 1 || ack[1] != 1)
+      return;
+  }
+  bool csw1 = slot == 1;
+  bool csw2 = slot == 2;
+
+  if (cb)
+    cb(sws, csw1, csw2);
 }

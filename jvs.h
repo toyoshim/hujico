@@ -8,6 +8,6 @@
 #include "chlib/led.h"
 
 void jvs_init();
-void jvs_poll();
+void jvs_poll(void (*cb)(uint8_t sws[5], bool csw1, bool csw2));
 
 #endif  // __client_h__
