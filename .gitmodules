@@ -4,3 +4,6 @@
 [submodule "CH55x_python_flasher"]
 	path = CH55x_python_flasher
 	url = https://github.com/hexeguitar/CH55x_python_flasher.git
+[submodule "jvsio"]
+	path = jvsio
+	url = git@github.com:toyoshim/jvsio.git
