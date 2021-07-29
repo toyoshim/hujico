@@ -4,15 +4,16 @@
 
 #include "jvs.h"
 
+#include "chlib/adc.h"
 #include "chlib/ch559.h"
 #include "chlib/io.h"
-#include "chlib/led.h"
 #include "chlib/rs485.h"
 #include "jvsio/JVSIO_c.h"
 
 struct JVSIO_DataClient data;
 struct JVSIO_SenseClient sense;
 struct JVSIO_LedClient led;
+struct JVSIO_Lib* lib = 0;
 
 // JVS#1 - P1.0 SENSE
 // JVS#2 - P5.4 D-
@@ -72,14 +73,12 @@ static void sense_set(struct JVSIO_SenseClient* client, bool ready) {
 
 static bool sense_is_ready(struct JVSIO_SenseClient* client) {
   client;
-  // can be true for single node.
-  return true;
+  return adc_get(0) < (50 << 3);
 }
 
 static bool sense_is_connected(struct JVSIO_SenseClient* client) {
   client;
-  // can be true for client mode.
-  return true;
+  return adc_get(0) < (240 << 3);
 }
 
 static void led_begin(struct JVSIO_LedClient* client) {
@@ -88,7 +87,7 @@ static void led_begin(struct JVSIO_LedClient* client) {
 
 static void led_set(struct JVSIO_LedClient* client, bool ready) {
   client;
-  led_oneshot(ready ? L_PULSE_ONCE : L_PULSE_THREE_TIMES);
+  ready;
 }
 
 void jvs_init() {
@@ -110,8 +109,32 @@ void jvs_init() {
   led.begin = led_begin;
   led.set = led_set;
 
+  led_init(0, 7, LOW);
   rs485_init();
+  adc_init();
+
+  lib = JVSIO_open(&data, &sense, &led, 0);
+  lib->begin(lib);
 }
 
 void jvs_poll() {
+  static bool ready = false;
+
+  led_poll();
+
+  if (sense_is_connected(0)) {
+    led_mode(L_ON);
+    if (!ready) {
+      ready = lib->boot(lib, false);
+      if (ready) {
+        Serial.println("JVS Bus ready");
+        led_oneshot(L_PULSE_THREE_TIMES);
+      }
+    }
+  } else {
+    led_mode(L_FASTER_BLINK);
+    ready = false;
+  }
+  if (!ready)
+    return;
 }

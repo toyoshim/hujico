@@ -3,25 +3,22 @@
 // in the LICENSE file.
 
 #include "chlib/ch559.h"
-#include "chlib/led.h"
 #include "dual_hid.h"
 #include "jvs.h"
 #include "jvsio/JVSIO_c.h"
 
 void main() {
   initialize();
-  led_init(0, 7, LOW);
   Serial.printf("\nBoot FUJICO v1.00\n");
 
   delay(30);
+
   dual_hid_init();
-  Serial.println("\nUSB Device ready");
+  Serial.println("USB Device ready");
 
   jvs_init();
-  Serial.println("\nJVS Host ready");
+  Serial.println("JVS Host ready");
 
-  for (;;) {
-    led_poll();
+  for (;;)
     jvs_poll();
-  }
 }

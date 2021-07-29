@@ -5,6 +5,8 @@
 #ifndef __jvs_h__
 #define __jvs_h__
 
+#include "chlib/led.h"
+
 void jvs_init();
 void jvs_poll();
 
