@@ -276,8 +276,8 @@ void dual_hid_update(uint8_t sws[5], bool csw1, bool csw2) {
       ((sws[4] & 0x08) ? 0x40 : 0) |
       ((sws[4] & 0x04) ? 0x80 : 0);
   report[4] =
-      ((sws[3] & 0x02) ? 0x01 : 0) |
-      ((sws[3] & 0x01) ? 0x02 : 0) |
+      ((sws[4] & 0x02) ? 0x01 : 0) |
+      ((sws[4] & 0x01) ? 0x02 : 0) |
       ((sws[3] & 0x40) ? 0x08 : 0) |
       (hold_csw2       ? 0x10 : 0) |
       ((sws[3] & 0x80) ? 0x20 : 0);
